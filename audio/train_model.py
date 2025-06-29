@@ -1,38 +1,60 @@
-import pickle
+import os
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.svm import SVC
-from sklearn.metrics import classification_report, confusion_matrix
+import librosa
+import pickle
 from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.model_selection import cross_val_score
+from tqdm import tqdm
+from extract_features import extract_features
+from preprocess_data import extract_post_hit
 
-# Load extracted features
-with open("audio/data/features.pkl", "rb") as f:
-    X, y = pickle.load(f)  # X shape: (n_samples, time_steps, feature_dim)
+# --------- Configuration ---------
+DATA_PATH = "audio/data/train"
+MODEL_DIR = "audio/model"
+SAMPLE_RATE = 44100
+CLASSES = ["glass", "plastic"]
+MAX_FRAMES = 50
 
-# Flatten for classical ML: (samples, features)
-X_flat = X.reshape(X.shape[0], -1)
 
-# Normalize features
+# --------- Load Data and Extract Features ---------
+X = []
+y = []
+
+print("Extracting features from training data...")
+for label_idx, label in enumerate(CLASSES):
+    folder = os.path.join(DATA_PATH, label)
+    for fname in tqdm(sorted(os.listdir(folder))):
+        if not fname.endswith(".wav"):
+            continue
+        filepath = os.path.join(folder, fname)
+        y_audio, _ = librosa.load(filepath, sr=SAMPLE_RATE)
+        y_audio = extract_post_hit(y_audio, SAMPLE_RATE)
+        feat = extract_features(y_audio, SAMPLE_RATE)
+        X.append(feat)
+        y.append(label_idx)
+
+X = np.array(X)
+y = np.array(y)
+
+# --------- Standardize ---------
+print("Fitting StandardScaler...")
 scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X_flat)
+X_scaled = scaler.fit_transform(X)
 
-# Split data
-X_train, X_test, y_train, y_test = train_test_split(
-    X_scaled, y, test_size=0.2, stratify=y, random_state=42
-)
+# --------- Train SVM ---------
+print("Training SVM...")
+clf = SVC(kernel="rbf", C=10, gamma="scale", probability=False)
+scores = cross_val_score(clf, X_scaled, y, cv=5)
+print(f"Cross-validation accuracy: {scores.mean() * 100:.2f}%")
 
-# Train SVM
-model = SVC(kernel='rbf', C=10, gamma='scale')  # RBF kernel helps with nonlinear separation
-model.fit(X_train, y_train)
+clf.fit(X_scaled, y)
 
-# Evaluate
-y_pred = model.predict(X_test)
-print("Classification Report:\n", classification_report(y_test, y_pred))
-print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
-
-# Save model and scaler
-with open("audio/model/svm_model.pkl", "wb") as f:
-    pickle.dump(model, f)
-
-with open("audio/model/scaler.pkl", "wb") as f:
+# --------- Save model and scaler ---------
+os.makedirs(MODEL_DIR, exist_ok=True)
+with open(os.path.join(MODEL_DIR, "svm_model.pkl"), "wb") as f:
+    pickle.dump(clf, f)
+with open(os.path.join(MODEL_DIR, "scaler.pkl"), "wb") as f:
     pickle.dump(scaler, f)
+
+print("Model and scaler saved to 'audio/model/' directory.")

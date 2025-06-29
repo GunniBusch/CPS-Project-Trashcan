@@ -15,3 +15,7 @@
    ```bash
    pip install -r requirements.txt
    ```
+4. **Run the classification:**
+   ```bash
+   python classify.py
+   ```
