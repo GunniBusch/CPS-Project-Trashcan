@@ -3,4 +3,3 @@ scipy
 librosa
 sounddevice
 scikit-learn
-matplotlib
