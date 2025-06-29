@@ -1,61 +1,45 @@
-import os
 import numpy as np
 import librosa
-from tqdm import tqdm
-import pickle
 
-# Paths
-PROCESSED_DATA_DIR = "audio/data/processed"
-FEATURES_OUT_PATH = "audio/data/features.pkl"
-CLASSES = ["glass", "plastic"]
+def extract_features(y, sr, n_mfcc=8):
+    """
+    Extracts relevant features to distinguish between glass and plastic:
+    - MFCCs (reduced to n_mfcc)
+    - Spectral Centroid
+    - Spectral Bandwidth
+    - Zero-Crossing Rate
+    - RMS Energy
+    - Decay Rate
+    """  
 
-# Feature extraction settings
-SAMPLE_RATE = 44100
-N_MFCC = 13  # Standard choice
-MAX_FRAMES = 50  # Pad/truncate to fixed number of frames
+    # Normalize audio
+    y = y / np.max(np.abs(y))
 
-def extract_features(file_path):
-    y, sr = librosa.load(file_path, sr=SAMPLE_RATE)
-    
-    # MFCC and delta
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=N_MFCC)
-    delta = librosa.feature.delta(mfcc)
-    
-    # Stack: [13 MFCCs + 13 delta] x time
-    features = np.vstack([mfcc, delta])
+    # Frame-level features (mean and std for each)
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
+    mfcc_mean = np.mean(mfcc, axis=1)
+    mfcc_std = np.std(mfcc, axis=1)
 
-    # Pad or truncate to fixed number of frames (time steps)
-    if features.shape[1] < MAX_FRAMES:
-        pad_width = MAX_FRAMES - features.shape[1]
-        features = np.pad(features, ((0, 0), (0, pad_width)), mode='constant')
-    else:
-        features = features[:, :MAX_FRAMES]
+    centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
+    bandwidth = librosa.feature.spectral_bandwidth(y=y, sr=sr)
+    zcr = librosa.feature.zero_crossing_rate(y)
+    rms = librosa.feature.rms(y=y)
 
-    return features.T  # Shape: (time_steps, feature_dim)
+    # Decay rate: slope of energy envelope
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+    decay_rate = 0.0
+    if len(onset_env) > 1:
+        decay_rate = np.polyfit(np.arange(len(onset_env)), onset_env, 1)[0]
 
-def build_feature_dataset():
-    X = []
-    y = []
+    # Aggregate features (mean/std)
+    features = np.concatenate([
+        mfcc_mean,
+        mfcc_std,
+        [np.mean(centroid), np.std(centroid)],
+        [np.mean(bandwidth), np.std(bandwidth)],
+        [np.mean(zcr), np.std(zcr)],
+        [np.mean(rms), np.std(rms)],
+        [decay_rate]
+    ])
 
-    label_map = {cls: idx for idx, cls in enumerate(CLASSES)}
-
-    for cls in CLASSES:
-        class_dir = os.path.join(PROCESSED_DATA_DIR, cls)
-        for fname in tqdm(os.listdir(class_dir), desc=f"Extracting {cls}"):
-            if fname.endswith(".wav"):
-                file_path = os.path.join(class_dir, fname)
-                feat = extract_features(file_path)
-                X.append(feat)
-                y.append(label_map[cls])
-
-    return np.array(X), np.array(y)
-
-if __name__ == "__main__":
-    X, y = build_feature_dataset()
-    
-    # Save features
-    with open(FEATURES_OUT_PATH, "wb") as f:
-        pickle.dump((X, y), f)
-
-    print("Feature extraction complete.")
-    print(f"Feature shape: {X.shape} | Labels shape: {y.shape}")
+    return features

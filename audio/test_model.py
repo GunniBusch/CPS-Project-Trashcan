@@ -1,70 +1,53 @@
 import os
-import librosa
 import numpy as np
+import librosa
 import pickle
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.metrics import classification_report, accuracy_score
+from tqdm import tqdm
+from extract_features import extract_features
+from preprocess_data import extract_post_hit
 
-# Config
-VAL_DATA_DIR = "audio/data/val"
+# --------- Config ---------
+VAL_PATH = "audio/data/val"
+MODEL_PATH = "audio/model/svm_model.pkl"
+SCALER_PATH = "audio/model/scaler.pkl"
 CLASSES = ["glass", "plastic"]
 SAMPLE_RATE = 44100
-POST_HIT_DURATION_SEC = 0.5
-N_MFCC = 13
 MAX_FRAMES = 50
+POST_HIT_DURATION_SEC = 0.5
 
-# Load trained model and scaler
-with open("audio/model/svm_model.pkl", "rb") as f:
-    model = pickle.load(f)
-with open("audio/model/scaler.pkl", "rb") as f:
+# --------- Load Model & Scaler ---------
+with open(MODEL_PATH, "rb") as f:
+    clf = pickle.load(f)
+with open(SCALER_PATH, "rb") as f:
     scaler = pickle.load(f)
 
-def extract_post_hit(y, sr, duration_sec):
-    energy = np.abs(y)
-    peak_index = np.argmax(energy)
-    end_index = min(len(y), peak_index + int(duration_sec * sr))
-    return y[peak_index:end_index]
-
-def extract_features(file_path):
-    y, sr = librosa.load(file_path, sr=SAMPLE_RATE)
-    y = extract_post_hit(y, sr, POST_HIT_DURATION_SEC)
-    y = y / np.max(np.abs(y))  # Normalize
-
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=N_MFCC)
-    delta = librosa.feature.delta(mfcc)
-    features = np.vstack([mfcc, delta])
-
-    if features.shape[1] < MAX_FRAMES:
-        pad_width = MAX_FRAMES - features.shape[1]
-        features = np.pad(features, ((0, 0), (0, pad_width)), mode='constant')
-    else:
-        features = features[:, :MAX_FRAMES]
-
-    return features.T.reshape(-1)  # Flatten to 1D
-
-# Prepare validation data
+# --------- Validate ---------
 X_val = []
 y_val = []
-label_map = {cls: i for i, cls in enumerate(CLASSES)}
 
-for cls in CLASSES:
-    folder = os.path.join(VAL_DATA_DIR, cls)
-    for fname in os.listdir(folder):
+print("Extracting features from validation data...")
+for label_idx, label in enumerate(CLASSES):
+    folder = os.path.join(VAL_PATH, label)
+    for fname in tqdm(sorted(os.listdir(folder))):
         if not fname.endswith(".wav"):
             continue
-        fpath = os.path.join(folder, fname)
-        feats = extract_features(fpath)
-        X_val.append(feats)
-        y_val.append(label_map[cls])
+        filepath = os.path.join(folder, fname)
+        y_audio, _ = librosa.load(filepath, sr=SAMPLE_RATE)
+        y_audio = extract_post_hit(y_audio, SAMPLE_RATE)
+        feat = extract_features(y_audio, SAMPLE_RATE)
+        X_val.append(feat)
+        y_val.append(label_idx)
 
 X_val = np.array(X_val)
 y_val = np.array(y_val)
 
-# Scale and predict
-X_val_scaled = scaler.transform(X_val)
-y_pred = model.predict(X_val_scaled)
+# --------- Predict & Evaluate ---------
+X_scaled = scaler.transform(X_val)
+y_pred = clf.predict(X_scaled)
 
-# Evaluate
+print("\nClassification Report:")
+print(classification_report(y_val, y_pred, target_names=CLASSES))
+
 acc = accuracy_score(y_val, y_pred)
-print(f"Validation Accuracy: {acc*100:.2f}%")
-print("Confusion Matrix:\n", confusion_matrix(y_val, y_pred))
-print("Classification Report:\n", classification_report(y_val, y_pred, target_names=CLASSES))
+print(f"Validation Accuracy: {acc * 100:.2f}%")
