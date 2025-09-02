@@ -2,6 +2,8 @@
 
 This service continuously listens to audio, captures a 1-second window (200 ms before, 800 ms after) when a sound threshold is exceeded, classifies it with an Edge Impulse model, and drives the mechanism over a serial API. It is designed to run as a headless daemon on a Raspberry Pi (or Linux/macOS for development).
 
+
+
 ## Highlights
 - Event-triggered audio capture with a 1 s snapshot (200 ms pre + 800 ms post)
 - Edge Impulse inference (model .eim) on captured audio (16 kHz, 1 s, int16)
@@ -16,6 +18,7 @@ This service continuously listens to audio, captures a 1-second window (200 ms b
 - Linux/Raspberry Pi OS or macOS
 - A working microphone input and PortAudio (sounddevice)
 - Edge Impulse .eim model (placed under model/)
+
 
 Install dependencies:
 ```bash
