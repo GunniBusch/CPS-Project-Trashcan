@@ -5,7 +5,7 @@
 
 // Forward declaration so it can be used before its definition.
 void handleSerialCommand(const String& cmd);
-
+void sendCommandResponse(const String& cmd, const String& returnValue);
 /**
  * This will control the whole trash can, by using the code from the trash_tray and bottle_input files.
  */
@@ -180,17 +180,48 @@ void handleSerialCommand(const String& cmd) {
   if (sep == -1) return;
   String func = cmd.substring(0, sep);
   String val = cmd.substring(sep + 2);
-  if (func == "m") {
+  if (func == "mTray") {
     int value = val.toInt();
     // Beispiel: Servo-Position setzen (hier Dummyfunktion)
 
     recvBottleIn(TrashType(value));
-    Serial.print("Servo move to: ");
-    Serial.println(value);
+    sendCommandResponse("mTray", "OK");
   
   }
+  else if (func == "gPosBottle")
+  {
+    // Get the current position of the bottle
+    BottleState pos = getBottleState();
+    Serial.print("Current bottle position: ");
+    sendCommandResponse("gPosBottle", String(pos));
+  }
+  else if (func == "mPosBottle")
+  {
+    // Get the current position of the bottle
+
+    
+    if (val.toInt() == 1) {
+      moveDrop();
+    }
+    else if (val.toInt() == 2) {
+      moveInit();
+    }
+        BottleState pos = getBottleState();
+
+    Serial.print("Current bottle position: ");
+    sendCommandResponse("mPosBottle", String(pos));
+  }
+  
   // Weitere Funktionen können hier ergänzt werden
 }
+
+void sendCommandResponse(const String& cmd, const String& returnValue)
+{
+  // TODO: Implement command response sending in form of command::ack::return_value
+  String response = cmd + "::ack::" + returnValue;
+  Serial.println(response);
+}
+
 // TODO: Implement error handling and recovery
 // TODO: Communicate with Raspberry Pi and interrupt when it detects an error
 // TODO: add timeouts for moving function. this needed since too long delays maybe related to issues eg obstacles

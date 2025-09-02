@@ -27,9 +27,9 @@ BottleState CURRENT_BOTTLE_STATE = UNKNOWN_STATE;
 
 
 void initBottleMechanism() {
-  //servo.attach(A1, MIN_ANGLE, MAX_ANGLE);              // Servo an A1 😈
-//  resetBottleState();
-CURRENT_BOTTLE_STATE = INIT_STATE;
+  servo.attach(A1, MIN_ANGLE, MAX_ANGLE);              // Servo an A1 😈
+  resetBottleState();
+  CURRENT_BOTTLE_STATE = INIT_STATE;
 
 }
 
@@ -53,7 +53,7 @@ void moveDrop() {
   CURRENT_BOTTLE_STATE = MOVING_STATE;
 
   int current = servo.read(); // Aktueller Servo-Winkel
-  int target = MID_POINT * 2;
+  int target = 0;
   if (current < target) {
 
     for (int pos = current; pos <= target; pos++) {
@@ -62,6 +62,7 @@ void moveDrop() {
     }
   } else {
     for (int pos = current; pos >= target; pos--) {
+      Serial.println(pos);
       servo.write(pos);
       delay(15);
     }
