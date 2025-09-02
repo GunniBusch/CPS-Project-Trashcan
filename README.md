@@ -169,7 +169,6 @@ The daemon exposes convenience methods and an optional background diagnostic loo
 - deploy/trashcan.service – systemd service unit
 - .env – configuration
 - model/ – Edge Impulse models (.eim)
-- audio/ – training/inference helpers (optional)
 - arduino/ – firmware/protocol (reference)
 
 ## License
