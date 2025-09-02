@@ -3,14 +3,14 @@
  * It controlles the tube that moves the bottle over the trash tray.
  * 
  * 
- * 
+ * And its not explosive, sort of ...
  */
 
 
 #include <Servo.h>
 #include <Arduino.h>
 #include <bottle_input.h>
-#include <trash_tray.h> // Für getCurrentTrashType / TrashType
+#include "trash_tray.h"
 
 
 
@@ -24,12 +24,15 @@ Servo servo;
 // PLASTIC & CAN -> Loch 1 bei 0°
 // GLAS          -> Loch 2 bei 180°
 // Normal        -> 90°
-static const int HOLE1_ANGLE = 0;    // Plastic/Can
-static const int HOLE2_ANGLE = 180;  // Glass
-static const int HOME_ANGLE  = 90;   // Normal
+
 
 
 BottleState CURRENT_BOTTLE_STATE = UNKNOWN_STATE;
+
+// Configurable mapping: default PLASTIC/CAN -> HOLE1, GLAS -> HOLE2
+static Hole g_holeForPlastic = HOLE1;
+static Hole g_holeForGlas = HOLE1;
+static Hole g_holeForCan = HOLE2;
 
 // Non-Blocking internals
 static int g_targetAngle = HOME_ANGLE;
@@ -66,15 +69,43 @@ int getBottleAngle() {
 
 // TODO Maybe make a non blocking move function like the one for the tray
 
+// Move to drop hole
+
+void moveDrop(Hole hole) {
+  CURRENT_BOTTLE_STATE = MOVING_STATE;
+  int target = (hole == HOLE2) ? HOLE2_ANGLE : HOLE1_ANGLE;
+  moveBottleToAngleNonBlockingStart(target, (hole == HOLE2) ? DROP_HOLE2_STATE : DROP_HOLE1_STATE);
+}
+
 void moveDrop() {
   CURRENT_BOTTLE_STATE = MOVING_STATE;
   int target = HOME_ANGLE;
+  BottleState done = UNKNOWN_STATE;
   TrashType t = getCurrentTrashType();
-  target = (t == GLAS) ? HOLE2_ANGLE : HOLE1_ANGLE;
-  moveBottleToAngleNonBlockingStart(target, DROP_STATE);
+  Hole h = getHoleForType(t);
+  if (h == HOLE2) {
+    target = HOLE2_ANGLE;
+    done = DROP_HOLE2_STATE;
+  } else {
+    target = HOLE1_ANGLE;
+    done = DROP_HOLE1_STATE;
+  }
+  moveBottleToAngleNonBlockingStart(target, done);
   // Blocking drive using the non-blocking tick
   while (!moveBottleToNonBlockingTick()) {
     // yield
+  }
+}
+
+void startDropMoveForCurrentType() {
+  // Initialize a non-blocking drop move based on current TrashType
+  CURRENT_BOTTLE_STATE = MOVING_STATE;
+  TrashType t = getCurrentTrashType();
+  Hole h = getHoleForType(t);
+  if (h == HOLE2) {
+    moveBottleToAngleNonBlockingStart(HOLE2_ANGLE, DROP_HOLE2_STATE);
+  } else {
+    moveBottleToAngleNonBlockingStart(HOLE1_ANGLE, DROP_HOLE1_STATE);
   }
 }
 
@@ -82,7 +113,7 @@ void moveInit() {
   CURRENT_BOTTLE_STATE = MOVING_STATE;
   moveBottleToAngleNonBlockingStart(HOME_ANGLE, INIT_STATE);
   while (!moveBottleToNonBlockingTick()) {
-    // yield
+    // yield this ......... ..... ... .. -> why?????
   }
 }
 
@@ -94,6 +125,8 @@ void setBottleSpeedDelay(int ms) {
 void moveBottleToAngleNonBlockingStart(int targetAngle, BottleState doneState) {
   g_targetAngle = constrain(targetAngle, MIN_ANGLE, MAX_ANGLE);
   g_doneState = doneState;
+  // Markiere Bewegung gestartet, um Mehrfach-Initialisierung im State-Machine-Tick zu vermeiden
+  CURRENT_BOTTLE_STATE = MOVING_STATE;
 }
 
 bool moveBottleToNonBlockingTick() {
@@ -117,4 +150,24 @@ void moveBottleToAngleBlocking(int targetAngle, BottleState doneState) {
   while (!moveBottleToNonBlockingTick()) {
     // busy-wait mit Schrittverzögerung in Tick
   }
+}
+
+// --- Configurable mapping helpers ---
+Hole getHoleForType(TrashType t) {
+  switch (t) {
+    case PLASTIC: return g_holeForPlastic;
+    case GLAS:    return g_holeForGlas;
+    case CAN:     return g_holeForCan;
+  }
+  return HOLE1;
+}
+
+
+
+int getAngleForHole(Hole hole) {
+  return (hole == HOLE2) ? HOLE2_ANGLE : HOLE1_ANGLE;
+}
+
+int getAngleForType(TrashType t) {
+  return getAngleForHole(getHoleForType(t));
 }

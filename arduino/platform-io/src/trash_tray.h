@@ -1,3 +1,8 @@
+#ifndef CPS_TRASH_TRAY_H
+#define CPS_TRASH_TRAY_H
+
+#include "trash_types.h"
+
 enum TrashTrayState
 {
     READY,
@@ -7,14 +12,8 @@ enum TrashTrayState
     ESTOP_STATE
 };
 
-// ENUM to represent the possible trash states of glas plastik and cans
-enum TrashType
-{
-    PLASTIC,
-    GLAS,
+// TrashType now defined in trash_types.h
 
-    CAN
-};
 void initTrashTray();
 bool selectTrashType(TrashType type);
 TrashType getCurrentTrashType();
@@ -36,5 +35,6 @@ bool isCalibrated();
 bool moveToTargetPosition();
 
 bool isTrayLoaded();
-void initTrashTray();
 bool calibrateTrashTray();
+
+#endif // CPS_TRASH_TRAY_H

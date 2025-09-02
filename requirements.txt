@@ -11,3 +11,7 @@ six>=1.16.0,<2
 opencv-python>=4.5.1.48,<5
 matplotlib
 python-dotenv>=1.0.0,<2
+streamlit>=1.35,<2
+fastapi>=0.110,<1
+uvicorn[standard]>=0.20,<1
+requests>=2.31,<3

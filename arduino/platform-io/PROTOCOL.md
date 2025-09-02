@@ -12,11 +12,14 @@ Diese Datei beschreibt die serielle Schnittstelle zwischen Raspberry Pi und dem 
   - `event::error::<CODE>` bei Fehlern
 
 ## Typen und Mappings
-- TrashType (Eingabe und Anzeige):
   - Zahlen: `0=PLASTIC`, `1=GLAS`, `2=CAN`
   - Strings: `plastic|plastik`, `glas|glass`, `can|dose`
-- BottleState (Rückgabe als Zahl): `0=INIT_STATE`, `1=DROP_STATE`, `2=MOVING_STATE`, `3=UNKNOWN_STATE`
-- Tray-Limit-Schalter (Pin 12, Pullup): `PRESSED` (LOW) / `RELEASED` (HIGH)
+ BottleState (Rückgabe als Zahl):
+  - `0=INIT_STATE`
+  - `1=DROP_HOLE1_STATE` (über Loch 1, 0°)
+  - `2=DROP_HOLE2_STATE` (über Loch 2, 180°)
+  - `3=MOVING_STATE`
+  - `4=UNKNOWN_STATE`
 
 ## Zustände (STATE)
 - `LOADING`: Start/Kalibrierung des Tray

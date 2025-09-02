@@ -1,13 +1,30 @@
-import serial
+import os
 import time
-arduino = serial.Serial(port='/dev/cu.usbserial-21230', baudrate=115200, timeout=.1)
-def write_read(x):
-    arduino.write(bytes(x, 'utf-8'))
-    time.sleep(0.05)
-    data = arduino.readline()
-    return data
+import serial
+from dotenv import load_dotenv, find_dotenv
 
-while True:
-    num = input("Enter a number: ") # Taking input from user
-    value = write_read(num)
-    print(value) # printing the value
+load_dotenv(find_dotenv())
+
+PORT = os.environ.get('TRASHCAN_SERIAL_PORT', '/dev/ttyACM0')
+BAUD = 9600
+TIMEOUT = 1.0
+
+ser = serial.Serial(port=PORT, baudrate=BAUD, timeout=TIMEOUT)
+print(f"Connected to {PORT} @ {BAUD} baud. Type commands like 'ping::x' or 'gState::x'. Ctrl+C to exit.")
+
+def write_read(cmd: str):
+    ser.write((cmd.strip() + "\n").encode('utf-8'))
+    time.sleep(0.05)
+    return ser.readline().decode('utf-8', errors='replace').strip()
+
+try:
+    while True:
+        cmd = input(">> ")
+        if not cmd:
+            continue
+        resp = write_read(cmd)
+        print(resp)
+except KeyboardInterrupt:
+    print("Bye.")
+finally:
+    ser.close()
