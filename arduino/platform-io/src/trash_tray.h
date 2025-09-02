@@ -19,6 +19,18 @@ void initTrashTray();
 bool selectTrashType(TrashType type);
 TrashType getCurrentTrashType();
 TrashTrayState getTrashTrayState();
+void trayStopImmediate();
+
+// Positionen pro Typ setzen/abfragen (in Steps)
+bool setTrayPositionForType(TrashType type, int steps);
+int getTrayPositionForType(TrashType type);
+
+// Diagnose
+long getTrayCurrentPosition();
+long getTrayTargetPosition();
+long getTrayDistanceToGo();
+float getTraySpeed();
+bool isCalibrated();
 
 // This is moving + calling isInPosition.
 bool moveToTargetPosition();
