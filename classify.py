@@ -1,3 +1,0 @@
-from audio.record_and_classify import record_and_classify
-
-record_and_classify()
